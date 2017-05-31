@@ -125,8 +125,8 @@ class Player extends Entity {
     }
 
     move(direction){
-        if((((this.position.y + this.physicalProperties.height/2) < game.width) && direction.y > 0) ||
-            (((this.position.y - this.physicalProperties.height/2) > 0) && (direction.y < 0))) {
+        if((((this.position.y + this.physicalProperties.height/2) < game.height) && direction.y > 0) ||
+            (((this.position.y - this.physicalProperties.height/2) > 0) && direction.y < 0)) {
             this.position.y += this.speed * direction.y
         }
     }
