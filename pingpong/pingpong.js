@@ -12,6 +12,7 @@ const direction = {
     RIGHT: {x: 1, y: 0}
 }
 let game;
+let keyState = {};
 
 Object.prototype.copy = function() {
     return JSON.parse(JSON.stringify(this));
@@ -22,13 +23,18 @@ window.onload = function () {
     game.createEntities();
     game.frameLoop();
     game.gameLoop();
-    game.respondToInput();
-}
+    window.addEventListener('keydown',function(e){
+        keyState[e.keyCode || e.which] = true;
+    },true);
+
+    window.addEventListener('keyup',function(e){
+        keyState[e.keyCode || e.which] = false;
+    },true);}
 
 class Game {
     constructor(){
-        this.canvas = document.getElementById('gameCanvas');
-        this.context = this.canvas.getContext('2d');
+        this.canvas = document.getElementById('gameCanvas')
+        this.context = this.canvas.getContext('2d')
         this.width = this.canvas.width
         this.height = this.canvas.height
         this.center = {x: this.width/2, y: this.height/2}
@@ -36,52 +42,45 @@ class Game {
 
     createEntities(){
         let playerOffsetX = 40;
-        this.player1 = new Player(playerOffsetX);
-        this.player2 = new Player(this.width - playerOffsetX);
+        this.player1 = new Player(playerOffsetX, 4);
+        this.player2 = new Player(this.width - playerOffsetX, 2);
         this.ball = new Ball();
     }
 
     frameLoop() {
         let game = this
         setInterval(function () {
-            if(game.ball.collide(game.player2) || game.ball.collide(game.player1)){
-                game.ball.direction = game.ball.direction === direction.RIGHT ? direction.LEFT : direction.RIGHT ;
-            }
-            if(game.ball.position.x < 0){
-                game.player1.score++;
-                game.ball.reset();
-            }
-            if(game.ball.position.y > this.width){
-                game.player2.score++;
-                game.ball.reset();
-            }
-            game.context.beginPath();
+            game.context.beginPath()
             game.draw()
             game.player1.draw()
             game.player2.draw()
             game.ball.draw()
+            game.context.closePath()
         }, 1000/frameInterval)
     }
 
     gameLoop() {
         let game = this
         setInterval(function() {
-            game.ball.move()
-        }, 1000/gameInterval)
-    }
-
-    respondToInput() {
-        let game = this
-        $(document).keydown(function(e){
-            switch(e.keyCode){
-                case 38: //Up
-                    game.player1.move(direction.UP)
-                    break;
-                case 40: //Down
-                    game.player1.move(direction.DOWN)
-                    break;
+            if (keyState[40]){
+                game.player1.move(direction.DOWN)
             }
-        })
+
+            if (keyState[38]){
+                game.player1.move(direction.UP)
+            }
+            game.ball.checkCollissions()
+            if(game.ball.position.x < 0){
+                game.player1.score++;
+                game.ball.reset();
+            }
+            if(game.ball.position.x > game.width){
+                game.player2.score++;
+                game.ball.reset();
+            }
+            game.ball.move()
+            game.player2.intelligentMove()
+        }, 1000/gameInterval)
     }
 
     draw() {
@@ -109,8 +108,7 @@ class Entity {
 }
 
 class Player extends Entity {
-    constructor(x){
-        const speed = 6;
+    constructor(x, speed){
         const width = 15;
         const height = 80;
         const color = 'white'
@@ -127,13 +125,25 @@ class Player extends Entity {
     }
 
     move(direction){
-        this.position.y += this.speed * direction.y
+        if((((this.position.y + this.physicalProperties.height/2) < game.width) && direction.y > 0) ||
+            (((this.position.y - this.physicalProperties.height/2) > 0) && (direction.y < 0))) {
+            this.position.y += this.speed * direction.y
+        }
+    }
+
+    intelligentMove(){
+        if(game.ball.position.y < this.position.y){
+            this.move(direction.UP)
+        }
+        if(game.ball.position.y > this.position.y){
+            this.move(direction.DOWN)
+        }
     }
 }
 
 class Ball extends Entity {
     constructor(){
-        const speed = 4;
+        const speed = 5;
         const color = 'white';
         const radius = 12;
         super(
@@ -141,8 +151,9 @@ class Ball extends Entity {
             {radius, color},
             speed,
         );
-        this.direction = direction.RIGHT;
+        this.direction = {};
         this.startPosition = game.center;
+        this.reset()
     }
 
     draw(){
@@ -151,31 +162,40 @@ class Ball extends Entity {
 
     move(){
         this.position.x += this.speed * this.direction.x
+        this.position.y += this.speed * this.direction.y
     }
 
     reset(){
+        let angle = Math.random()/2
+        if(Math.random()< 0.5){
+            angle*=-1
+        }
         this.position.x = this.startPosition.x
         this.position.y = this.startPosition.y
-        this.direction = direction.RIGHT;
+        this.direction.x = Math.cos(angle)
+        this.direction.y = Math.sin(angle)
+        if(Math.random() < 0.5){
+            this.position.x*=1
+        }
     }
 
     //Check if this object and the other entity collide
-    collide(player){
-        if(player instanceof Player){
-            let circleDistance = {}
-            circleDistance.x = Math.abs(this.position.x - player.position.x);
-            circleDistance.y = Math.abs(this.position.y - player.position.y);
-            if (circleDistance.x > (player.physicalProperties.width/2 + this.physicalProperties.radius)) { return false; }
-            if (circleDistance.y > (player.physicalProperties.height/2 + this.physicalProperties.radius)) { return false; }
-
-            if (circleDistance.x <= (player.physicalProperties.width/2)) { return true; }
-            if (circleDistance.y <= (player.physicalProperties.height/2)) { return true; }
-
-            let cornerDistance_sq = (circleDistance.x - player.physicalProperties.width/2)^2 +
-                (circleDistance.y - player.physicalProperties.height/2)^2;
-            return (cornerDistance_sq <= (Math.pow(this.physicalProperties.radius, 2)));
+    checkCollissions(){
+        if((this.direction.y < 0 && this.position.y < 0) ||
+            (this.direction.y > 0 && this.position.y > game.height)){
+            this.direction.y*=-1
         }
-        return false
+        else {
+            let player = game.ball.direction.x < 0 ? game.player1 : game.player2
+            let circleDistance = {}
+            circleDistance.x = this.position.x - player.position.x;
+            circleDistance.y = this.position.y - player.position.y;
+            if(Math.abs(circleDistance.x) <= player.physicalProperties.width/2 &&
+                Math.abs(circleDistance.y) <= player.physicalProperties.height/2){
+                this.direction = {x: -this.direction.x, y: Math.sin(circleDistance.y/(player.physicalProperties.height/2))}
+            }
+        }
+
     }
 
 }
