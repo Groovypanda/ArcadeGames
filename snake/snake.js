@@ -43,8 +43,8 @@ function draw(){
 
 class Food {
     constructor(){
-        this.x = floor(random(rows))
-        this.y = floor(random(columns))
+        this.x = round(random(rows))
+        this.y = round(random(columns))
     }
 
     show(x, y){
@@ -64,9 +64,6 @@ class Snake {
         this.direction = direction.NONE
         this.x = x
         this.y = y
-        for(var i=0; i<10; i++){
-            this.addPiece()
-        }
     }
 
     update(){
@@ -74,6 +71,18 @@ class Snake {
         this.x += this.speed*this.direction.x
         this.y += this.speed*this.direction.y
         this.head.update({x: this.x, y: this.y})
+        for(let i=0; i<food.length; i++){
+            if(this.x === food[i].x && this.y === food[i].y){
+                this.eat(i)
+            }
+        }
+    }
+
+    //i indicates which piece of food should be eaten
+    eat(i){
+        this.addPiece()
+        food.splice(i, 1)
+        food.push(new Food())
     }
 
     addPiece(){
