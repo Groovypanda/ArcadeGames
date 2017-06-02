@@ -4,7 +4,11 @@ let snake = {};
 let rows = 30; //Amount of rows;
 let columns = 30; //Amount of columns;
 let size = 16; //Size of a cell;
+let gameWidth = rows*size+1
+let gameHeight = size*columns+1
 let food = [];
+let atStartup = true
+let difficulty = 0
 
 const direction = {
     NONE: {x: 0, y: 0},
@@ -21,24 +25,43 @@ const keyDirection = {
 }
 
 function setup(){
-    createCanvas(size*rows+1, size*columns+1)
+    createCanvas(gameWidth, gameHeight)
+    showStartScreen()
     frameRate(10)
     window.addEventListener('keydown',function(e){
         if(e.keyCode >= 37 && e.keyCode <= 40)  keyState = e.keyCode
     },true);
-    snake = new Snake(rows/2, columns/2)
-    food.push(new Food())
 }
 
+function showStartScreen(){
+    let difficulties = ['Easy', 'Medium', 'Hard']
+    let difficultieValues = [1, 0.2, 0.5]
+    for(let i=0; i<difficulties.length; i++){
+        let button = createButton(difficulties[i]);
+        let buttonWidth = 100
+        button.size(buttonWidth, 40)
+        button.position(((i+1)*gameWidth)/(difficulties.length+1)-buttonWidth/2, gameHeight/2)
+        button.mousePressed(() => {
+            atStartup = false
+            difficulty = difficultieValues[i]
+            snake = new Snake(rows/2, columns/2)
+            food.push(new Food())
+            removeElements(); //Remove all of the buttons
+        })
+    }
 
+}
 
 function draw(){
     background('black')
-    snake.update()
-    snake.show()
-    for(let i=0; i<food.length; i++){
-        food[i].show()
+    if(!atStartup) {
+        snake.update()
+        snake.show()
+        for(let i=0; i<food.length; i++){
+            food[i].show()
+        }
     }
+
 }
 
 class Food {
@@ -58,19 +81,30 @@ class Food {
 
 class Snake {
     constructor(x, y) {
-        this.speed = 1
+        this.speed = difficulty
         this.head = new SnakePiece(x, y)
-        this.tail = this.head
         this.direction = direction.NONE
-        this.x = x
-        this.y = y
+        this.originalPosition = {x, y}
+        this.reset()
     }
 
     update(){
-        this.direction = keyState === null ? direction.NONE : keyDirection[keyState]
+        //Update direction and position
+        let newDirection = keyState === null ? direction.NONE : keyDirection[keyState]
+        if(this.length ===  1 || (newDirection.x !== -this.direction.x || newDirection.y !== -this.direction.y)) this.direction = newDirection
         this.x += this.speed*this.direction.x
         this.y += this.speed*this.direction.y
         this.head.update({x: this.x, y: this.y})
+        //Check for collissions with snake
+        let piece = this.head.next
+        while(piece!==null && !(this.x === piece.x && this.y === piece.y)){
+            piece = piece.next
+        }
+        //If a collission occurred then reset the snake
+        if(piece!==null || this.x > rows || this.x < 0 || this.y > columns || this.y < 0){
+            this.reset()
+        }
+        //Check if food can be eaten
         for(let i=0; i<food.length; i++){
             if(this.x === food[i].x && this.y === food[i].y){
                 this.eat(i)
@@ -89,10 +123,20 @@ class Snake {
         let piece = new SnakePiece()
         this.tail.setNext(piece)
         this.tail = piece
+        this.length++
     }
 
     show(){
         this.head.show()
+    }
+
+    reset(){
+        this.length = 1
+        this.head.next = null
+        this.tail = this.head
+        this.x = this.originalPosition.x
+        this.y = this.originalPosition.y
+        this.direction = direction.NONE
     }
 }
 
