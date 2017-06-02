@@ -113,7 +113,7 @@ class Snake {
             piece = piece.next
         }
         //If a collission occurred then reset the snake
-        if(piece!==null || this.x > rows || this.x < 0 || this.y > columns || this.y < 0){
+        if(piece!==null || this.x >= rows || this.x < 0 || this.y >= columns || this.y < 0){
             gameOver()
         }
         //Check if food can be eaten
