@@ -1,15 +1,15 @@
 
-let keyState = null;
-let snake = {};
-let rows = 30; //Amount of rows;
-let columns = 30; //Amount of columns;
-let size = 16; //Size of a cell;
-let gameWidth = rows*size+1
-let gameHeight = size*columns+1
-let food = [];
-let atStartup = true
-let difficulty = 0
-
+let keyState = null; //The previously pressed key
+let snake = {}; //The snake object
+let rows = 30; //Amount of rows
+let columns = 30; //Amount of columns
+let size = 20; //Size of a cell;
+let gameWidth = rows*size+1 //The width of the game
+let gameHeight = size*columns+1 //The height of the game
+let food = []; //An array of food the snake can eat
+let atStartup = true //Displays if the menu should be shown
+let moveInterval //At which interval the snake should move
+let currentInterval=0 //How lang it has been since the snake has moved
 const direction = {
     NONE: {x: 0, y: 0},
     UP: {x: 0, y: -1},
@@ -27,15 +27,22 @@ const keyDirection = {
 function setup(){
     createCanvas(gameWidth, gameHeight)
     showStartScreen()
-    frameRate(10)
+    frameRate(30)
     window.addEventListener('keydown',function(e){
         if(e.keyCode >= 37 && e.keyCode <= 40)  keyState = e.keyCode
     },true);
 }
 
+function gameOver(){
+    food = []
+    keyState = null
+    atStartup = true
+    showStartScreen()
+}
+
 function showStartScreen(){
     let difficulties = ['Easy', 'Medium', 'Hard']
-    let difficultieValues = [1, 0.2, 0.5]
+    let difficultieValues = [5, 2, 1]
     for(let i=0; i<difficulties.length; i++){
         let button = createButton(difficulties[i]);
         let buttonWidth = 100
@@ -43,7 +50,7 @@ function showStartScreen(){
         button.position(((i+1)*gameWidth)/(difficulties.length+1)-buttonWidth/2, gameHeight/2)
         button.mousePressed(() => {
             atStartup = false
-            difficulty = difficultieValues[i]
+            moveInterval = difficultieValues[i]
             snake = new Snake(rows/2, columns/2)
             food.push(new Food())
             removeElements(); //Remove all of the buttons
@@ -55,7 +62,10 @@ function showStartScreen(){
 function draw(){
     background('black')
     if(!atStartup) {
-        snake.update()
+        if(++currentInterval>=moveInterval){
+            snake.update()
+            currentInterval=0
+        }
         snake.show()
         for(let i=0; i<food.length; i++){
             food[i].show()
@@ -81,11 +91,13 @@ class Food {
 
 class Snake {
     constructor(x, y) {
-        this.speed = difficulty
+        this.speed = 1
+        this.x = x
+        this.y = y
         this.head = new SnakePiece(x, y)
         this.direction = direction.NONE
-        this.originalPosition = {x, y}
-        this.reset()
+        this.length = 1
+        this.tail = this.head
     }
 
     update(){
@@ -102,7 +114,7 @@ class Snake {
         }
         //If a collission occurred then reset the snake
         if(piece!==null || this.x > rows || this.x < 0 || this.y > columns || this.y < 0){
-            this.reset()
+            gameOver()
         }
         //Check if food can be eaten
         for(let i=0; i<food.length; i++){
@@ -128,15 +140,6 @@ class Snake {
 
     show(){
         this.head.show()
-    }
-
-    reset(){
-        this.length = 1
-        this.head.next = null
-        this.tail = this.head
-        this.x = this.originalPosition.x
-        this.y = this.originalPosition.y
-        this.direction = direction.NONE
     }
 }
 
